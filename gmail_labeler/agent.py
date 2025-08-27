@@ -20,6 +20,7 @@ def create_agent(user_id: str, composio_client: Composio[LangchainProvider]):
         tools=[
             "GMAIL_LIST_LABELS",
             "GMAIL_ADD_LABEL_TO_EMAIL",
+            "GMAIL_CREATE_LABEL",
         ],
     )
 

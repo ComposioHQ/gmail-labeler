@@ -26,38 +26,20 @@ def parse_args():
     return parser.parse_args()
 
 
-def run_agent(user_id: str):
-    composio_client = Composio(provider=LangchainProvider())
-    connected_account_id = check_connected_account_exists(composio_client, user_id)
-    if connected_account_id is None:
-        connection_request = create_connection(composio_client, user_id)
-        print(
-            f"Authenticate with the following link: {connection_request.redirect_url}"
-        )
-        connection_request.wait_for_connection()
-        connected_account_id = connection_request.id
-
-    # Check if trigger exists
-    trigger_id = check_trigger_exists(
-        composio_client=composio_client,
-        connected_account_id=connected_account_id,
-    )
-    if trigger_id is None:
-        trigger_id = create_trigger(
-            composio_client=composio_client,
-            connected_account_id=connected_account_id,
-        )
-
-    # Create agent
-    agent = create_agent(user_id=user_id, composio_client=composio_client)
-
-    # Create triggeer subscription
+def create_trigger_subscription(
+    composio_client: Composio[LangchainProvider],
+    trigger_slug: str,
+    trigger_id: str,
+    agent: AgentExecutor,
+):
+    """
+    Create a trigger subscription for the given agent.
+    """
     trigger_subscription = composio_client.triggers.subscribe()
 
-    # Register event handler
     @trigger_subscription.handle(
-        # trigger_id=trigger_id,
-        trigger_slug=GMAIL_NEW_GMAIL_MESSAGE_TRIGGER,
+        trigger_slug=trigger_slug,
+        trigger_id=trigger_id,
     )
     def handle_event(event: TriggerEvent):
         print("> Received email with subject: ", event["payload"]["subject"])
@@ -72,6 +54,45 @@ def run_agent(user_id: str):
         )
         print("> Result: ", result["output"])
 
+    return trigger_subscription
+
+
+def run_agent(user_id: str):
+    # Create composio client
+    composio_client = Composio(provider=LangchainProvider())
+
+    # Validate conected account
+    connected_account_id = check_connected_account_exists(composio_client, user_id)
+    if connected_account_id is None:
+        connection_request = create_connection(composio_client, user_id)
+        print(
+            f"Authenticate with the following link: {connection_request.redirect_url}"
+        )
+        connection_request.wait_for_connection()
+        connected_account_id = connection_request.id
+
+    # Check if trigger exists, create if not
+    trigger_id = check_trigger_exists(
+        composio_client=composio_client,
+        connected_account_id=connected_account_id,
+    )
+    if trigger_id is None:
+        trigger_id = create_trigger(
+            composio_client=composio_client,
+            connected_account_id=connected_account_id,
+        )
+
+    # Create agent
+    agent = create_agent(user_id=user_id, composio_client=composio_client)
+
+    # Create triggeer subscription
+    trigger_subscription = create_trigger_subscription(
+        composio_client=composio_client,
+        trigger_slug=GMAIL_NEW_GMAIL_MESSAGE_TRIGGER,
+        trigger_id=trigger_id,
+        agent=agent,
+    )
+
     # Wait forever
     print("Waiting for events...")
     trigger_subscription.wait_forever()
@@ -81,6 +102,7 @@ def main():
     dotenv.load_dotenv()
     args = parse_args()
     run_agent(user_id=args.user_id)
+
 
 if __name__ == "__main__":
     main()

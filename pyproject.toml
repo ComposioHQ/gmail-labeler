@@ -1,0 +1,14 @@
+[project]
+name = "gmail-labeler"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "composio>=0.8.7",
+    "composio-langchain>=0.8.2",
+    "langchain>=0.3.27",
+    "langchain-openai>=0.3.31",
+    "python-dotenv>=1.1.1",
+    "uvicorn>=0.35.0",
+]
